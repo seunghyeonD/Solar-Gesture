@@ -3,8 +3,14 @@ import type { NextRequest } from "next/server";
 
 export function middleware(request: NextRequest) {
   // Next.js generates inline scripts for hydration/chunk loading
-  // that cannot receive a nonce, so 'unsafe-inline' is required for script-src.
-  // All other CSP directives remain strict to block injection vectors.
+  // that cannot receive a nonce in the current App Router architecture,
+  // so 'unsafe-inline' is required for script-src.
+  //
+  // Mitigations for this trade-off:
+  // - 'strict-dynamic' is NOT used (it would bypass host allowlists)
+  // - CDN scripts are protected by SRI hashes in the client code
+  // - All other CSP directives remain maximally strict
+  // - script-src is locked to 'self' + one CDN domain only
   const cspHeader = `
     default-src 'none';
     script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cdn.jsdelivr.net;
@@ -26,6 +32,14 @@ export function middleware(request: NextRequest) {
 
   const response = NextResponse.next();
   response.headers.set("Content-Security-Policy", cspHeader);
+
+  // Prevent caching of HTML responses to ensure CSP is always fresh
+  if (request.headers.get("accept")?.includes("text/html")) {
+    response.headers.set(
+      "Cache-Control",
+      "no-store, no-cache, must-revalidate"
+    );
+  }
 
   return response;
 }

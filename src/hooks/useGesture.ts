@@ -144,10 +144,24 @@ export function useGesture(
         videoEl.srcObject = stream;
         await videoEl.play();
 
+        // Allowlist of known MediaPipe model files to prevent arbitrary file loading
+        const ALLOWED_FILES = new Set([
+          "hands.binarypb",
+          "hands_solution_packed_assets.data",
+          "hands_solution_packed_assets_loader.js",
+          "hands_solution_simd_wasm_bin.js",
+          "hands_solution_simd_wasm_bin.wasm",
+          "hands_solution_wasm_bin.js",
+          "hands_solution_wasm_bin.wasm",
+        ]);
+
         const hands = new Hands({
           locateFile: (f: string) => {
             const safeName = f.replace(/[^a-zA-Z0-9._-]/g, "");
-            return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${safeName}`;
+            if (!ALLOWED_FILES.has(safeName)) {
+              throw new Error(`Blocked unexpected MediaPipe file request: ${safeName}`);
+            }
+            return `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/${safeName}`;
           },
         });
 

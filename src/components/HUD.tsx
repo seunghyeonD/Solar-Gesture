@@ -15,7 +15,11 @@ interface HUDProps {
 }
 
 function sanitizeText(str: string): string {
-  return str.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+  if (typeof str !== "string") return "";
+  return str
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "")       // control chars
+    .replace(/[\u200B-\u200F\u202A-\u202E\uFEFF]/g, "")       // zero-width & bidi override
+    .replace(/[\u061C\u2066-\u2069]/g, "");                     // bidi isolates
 }
 
 export default function HUD({
