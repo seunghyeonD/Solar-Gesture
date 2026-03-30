@@ -2,10 +2,12 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 export function middleware(request: NextRequest) {
-  const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
+  // Next.js generates inline scripts for hydration/chunk loading
+  // that cannot receive a nonce, so 'unsafe-inline' is required for script-src.
+  // All other CSP directives remain strict to block injection vectors.
   const cspHeader = `
     default-src 'none';
-    script-src 'self' 'nonce-${nonce}' https://cdn.jsdelivr.net;
+    script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cdn.jsdelivr.net;
     style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
     font-src 'self' https://fonts.gstatic.com;
     img-src 'self' blob: data:;
@@ -22,10 +24,7 @@ export function middleware(request: NextRequest) {
     .replace(/\s{2,}/g, " ")
     .trim();
 
-  const requestHeaders = new Headers(request.headers);
-  requestHeaders.set("x-nonce", nonce);
-
-  const response = NextResponse.next({ request: { headers: requestHeaders } });
+  const response = NextResponse.next();
   response.headers.set("Content-Security-Policy", cspHeader);
 
   return response;
