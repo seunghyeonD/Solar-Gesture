@@ -144,22 +144,15 @@ export function useGesture(
         videoEl.srcObject = stream;
         await videoEl.play();
 
-        // Allowlist of known MediaPipe model files to prevent arbitrary file loading
-        const ALLOWED_FILES = new Set([
-          "hands.binarypb",
-          "hands_solution_packed_assets.data",
-          "hands_solution_packed_assets_loader.js",
-          "hands_solution_simd_wasm_bin.js",
-          "hands_solution_simd_wasm_bin.wasm",
-          "hands_solution_wasm_bin.js",
-          "hands_solution_wasm_bin.wasm",
-        ]);
+        // Allowlist of known MediaPipe model/runtime files
+        const ALLOWED_EXTENSIONS = /\.(js|wasm|binarypb|data|tflite)$/;
 
         const hands = new Hands({
           locateFile: (f: string) => {
+            // Sanitize: strip path traversal and non-filename characters
             const safeName = f.replace(/[^a-zA-Z0-9._-]/g, "");
-            if (!ALLOWED_FILES.has(safeName)) {
-              throw new Error(`Blocked unexpected MediaPipe file request: ${safeName}`);
+            if (!ALLOWED_EXTENSIONS.test(safeName)) {
+              throw new Error(`Blocked unexpected MediaPipe file: ${safeName}`);
             }
             return `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/${safeName}`;
           },
@@ -196,7 +189,11 @@ export function useGesture(
 
         const camera = new Camera(videoEl, {
           onFrame: async () => {
-            await hands.send({ image: videoEl });
+            try {
+              await hands.send({ image: videoEl });
+            } catch {
+              // Ignore transient frame processing errors
+            }
           },
           width: 320,
           height: 240,
